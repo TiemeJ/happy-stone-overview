@@ -461,7 +461,7 @@
 
                 for (const doc of snapshot.docs) {
                     const stoneData = doc.data();
-                    if (stoneData.acquisitions && stoneData.acquisitions.length > 0) {
+                    if (stoneData.acquisition && stoneData.acquisition.length > 0) {
                         // Count occurrences of each acquisition type
                         const counts = {
                             found: 0,
@@ -469,7 +469,7 @@
                             stranger: 0
                         };
 
-                        stoneData.acquisitions.forEach(type => {
+                        stoneData.acquisition.forEach(type => {
                             if (counts.hasOwnProperty(type)) {
                                 counts[type]++;
                             }
@@ -488,7 +488,7 @@
                         const chartDiv = document.createElement('div');
                         chartDiv.className = 'chart-container';
                         chartDiv.innerHTML = `
-                            <div class="chart-title">Stone #${doc.id} Acquisitions</div>
+                            <div class="chart-title">Stone #${doc.id} Acquisition</div>
                             <canvas id="pieChart${doc.id}" width="270" height="250"></canvas>
                         `;
                         chartsContainer.appendChild(chartDiv);
