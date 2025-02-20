@@ -8,7 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-firestore-compat.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <!-- Add Chart.js for pie charts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <style>
         body {
@@ -167,30 +166,26 @@
             font-weight: bold;
         }
 
-        /* New styles for acquisition charts */
-        .acquisition-charts {
+        .stats-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .charts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
-            margin: 20px 0;
+            margin-top: 20px;
         }
 
         .chart-container {
             background: white;
             padding: 15px;
-            border-radius: 15px;
+            border-radius: 10px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            text-align: center;
-        }
-
-        .chart-container h3 {
-            margin: 0 0 10px 0;
-            color: #2c3e50;
-        }
-
-        .chart-canvas {
-            width: 100%;
-            height: 200px;
         }
     </style>
 </head>
@@ -213,10 +208,6 @@
             </div>
         </div>
 
-        <!-- New section for acquisition charts -->
-        <h2>Acquisition Distribution</h2>
-        <div class="acquisition-charts" id="acquisitionCharts"></div>
-
         <div class="dashboard-grid">
             <div class="recent-updates">
                 <h2>Recent Updates</h2>
@@ -228,6 +219,11 @@
                 <div id="journeyMap"></div>
                 <div class="journey-details" id="journeyDetails"></div>
             </div>
+        </div>
+
+        <div class="stats-section">
+            <h2>Acquisition Statistics</h2>
+            <div class="charts-grid" id="acquisitionCharts"></div>
         </div>
     </div>
 
@@ -248,84 +244,6 @@
         const db = firebase.firestore();
         let currentMap = null;
         let activeStoneId = null;
-        let charts = {};
-
-        // Colors for acquisition types
-        const ACQUISITION_COLORS = {
-            found: '#84fab0',    // Green from gradient
-            known: '#8fd3f4',    // Blue from gradient
-            stranger: '#f4c28f'  // Complementary orange
-        };
-
-        async function loadAcquisitionData() {
-            try {
-                const acquisitionCharts = document.getElementById('acquisitionCharts');
-                acquisitionCharts.innerHTML = '';
-
-                const snapshot = await db.collection('stones').get();
-
-                for (const doc of snapshot.docs) {
-                    const stoneId = doc.id;
-                    const journeysSnapshot = await doc.ref.collection('journeys').get();
-
-                    const acquisitionCounts = {
-                        found: 0,
-                        known: 0,
-                        stranger: 0
-                    };
-
-                    journeysSnapshot.forEach(journey => {
-                        const data = journey.data();
-                        if (data.acquisition) {
-                            acquisitionCounts[data.acquisition]++;
-                        }
-                    });
-
-                    // Create chart container
-                    const chartContainer = document.createElement('div');
-                    chartContainer.className = 'chart-container';
-                    chartContainer.innerHTML = `
-                        <h3>Stone #${stoneId}</h3>
-                        <canvas id="chart-${stoneId}" class="chart-canvas"></canvas>
-                    `;
-                    acquisitionCharts.appendChild(chartContainer);
-
-                    // Create pie chart
-                    const ctx = document.getElementById(`chart-${stoneId}`).getContext('2d');
-                    const chartData = {
-                        labels: Object.keys(acquisitionCounts).map(key => 
-                            key.charAt(0).toUpperCase() + key.slice(1)
-                        ),
-                        datasets: [{
-                            data: Object.values(acquisitionCounts),
-                            backgroundColor: Object.keys(acquisitionCounts).map(key => 
-                                ACQUISITION_COLORS[key]
-                            )
-                        }]
-                    };
-
-                    if (charts[stoneId]) {
-                        charts[stoneId].destroy();
-                    }
-
-                    charts[stoneId] = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: chartData,
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'bottom'
-                                }
-                            }
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error("Error loading acquisition data:", error);
-            }
-        }
 
         async function getCoordinates(locationString) {
             try {
@@ -344,14 +262,17 @@
             }
         }
 
+        // Load recent updates across all stones
         async function loadRecentUpdates() {
             const recentUpdates = document.getElementById('recentUpdates');
             recentUpdates.innerHTML = '';
 
             try {
+                // Get all stones
                 const stonesSnapshot = await db.collection('stones').get();
                 let allUpdates = [];
 
+                // Collect updates from all stones
                 for (const stoneDoc of stonesSnapshot.docs) {
                     const journeysSnapshot = await stoneDoc.ref.collection('journeys')
                         .orderBy('timestamp', 'desc')
@@ -367,8 +288,10 @@
                     });
                 }
 
+                // Sort all updates by timestamp
                 allUpdates.sort((a, b) => b.timestamp - a.timestamp);
 
+                // Display the 20 most recent updates
                 allUpdates.slice(0, 20).forEach(update => {
                     const date = update.timestamp ? update.timestamp.toDate().toLocaleDateString() : 'Recent';
                     const time = update.timestamp ? update.timestamp.toDate().toLocaleTimeString() : '';
@@ -379,7 +302,6 @@
                         <h3>Stone #${update.stoneId} - 📍 ${update.location}</h3>
                         <p>${update.message}</p>
                         <p class="timestamp">${date} ${time}</p>
-                        ${update.acquisition ? `<p class="acquisition">Acquired: ${update.acquisition}</p>` : ''}
                     `;
                     recentUpdates.appendChild(entry);
                 });
@@ -389,6 +311,7 @@
             }
         }
 
+        // Load all stones
         async function loadStones() {
             try {
                 const snapshot = await db.collection('stones').get();
@@ -422,7 +345,7 @@
                     `;
                     card.onclick = () => selectStone(doc.id);
                     stonesGrid.appendChild(card);
-                    }
+                }
 
                 document.getElementById('totalStones').textContent = snapshot.size;
                 document.getElementById('totalJourneys').textContent = totalJourneys;
@@ -512,7 +435,6 @@
                         <h3>📍 ${data.location}</h3>
                         <p>${data.message}</p>
                         <p style="color: #666; font-size: 0.9em;">${date} ${time}</p>
-                        ${data.acquisition ? `<p style="color: #84fab0; font-size: 0.9em;">Acquired: ${data.acquisition}</p>` : ''}
                     `;
                     journeyDetails.appendChild(entry);
                 });
@@ -522,12 +444,78 @@
             }
         }
 
+        async function loadAcquisitionStats() {
+            try {
+                const snapshot = await db.collection('stones').get();
+                const chartsContainer = document.getElementById('acquisitionCharts');
+                chartsContainer.innerHTML = '';
+
+                for (const doc of snapshot.docs) {
+                    const journeysSnapshot = await doc.ref.collection('journeys').get();
+                    
+                    // Count acquisition methods
+                    const acquisitionCounts = {
+                        found: 0,
+                        known: 0,
+                        stranger: 0
+                    };
+
+                    journeysSnapshot.docs.forEach(journey => {
+                        const data = journey.data();
+                        if (data.acquisition) {
+                            acquisitionCounts[data.acquisition]++;
+                        }
+                    });
+
+                    // Create chart container
+                    const chartContainer = document.createElement('div');
+                    chartContainer.className = 'chart-container';
+                    chartContainer.innerHTML = `
+                        <h3>Stone #${doc.id} Acquisition Methods</h3>
+                        <canvas id="chart-${doc.id}"></canvas>
+                    `;
+                    chartsContainer.appendChild(chartContainer);
+
+                    // Create pie chart
+                    const ctx = document.getElementById(`chart-${doc.id}`).getContext('2d');
+                    new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Found', 'Known Person', 'Stranger'],
+                            datasets: [{
+                                data: [
+                                    acquisitionCounts.found,
+                                    acquisitionCounts.known,
+                                    acquisitionCounts.stranger
+                                ],
+                                backgroundColor: [
+                                    '#FF9F40',
+                                    '#4BC0C0',
+                                    '#36A2EB'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Error loading acquisition statistics:", error);
+            }
+        }
+
         // Initialize the dashboard
         window.onload = () => {
             loadStones();
             loadRecentUpdates();
-            loadAcquisitionData();
             initMap();
+            loadAcquisitionStats();
         };
     </script>
 </body>
