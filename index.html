@@ -453,7 +453,7 @@
             }
         }
 
-        async function loadAcquisitionStats() {
+        async function loadacquisitiontats() {
             try {
                 const snapshot = await db.collection('stones').get();
                 const chartsContainer = document.getElementById('acquisitionCharts');
@@ -531,7 +531,7 @@
             loadStones();
             loadRecentUpdates();
             initMap();
-            loadAcquisitionStats();
+            loadacquisitiontats();
         };
     </script>
 </body>
