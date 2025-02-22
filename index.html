@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Happy Stones Dashboard</title>
+    <!-- Firebase SDKs -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-firestore-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-storage-compat.min.js"></script>
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <style>
@@ -92,7 +95,7 @@
             padding: 20px;
             background: #f8f9fa;
             border-radius: 15px;
-            max-height: 400px;
+            max-height: 600px;
             overflow-y: auto;
         }
 
@@ -114,11 +117,19 @@
         }
 
         .update-entry {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 15px;
             padding: 15px;
             margin-bottom: 15px;
             border-radius: 10px;
             background: #f8f9fa;
             border-left: 4px solid #8fd3f4;
+            align-items: start;
+        }
+
+        .update-content {
+            flex: 1;
         }
 
         .update-entry h3 {
@@ -164,12 +175,130 @@
             color: #84fab0;
             font-weight: bold;
         }
+
+        .journey-photo {
+            max-width: 200px;
+            border-radius: 8px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .journey-photo:hover {
+            transform: scale(1.05);
+        }
+
+        .update-photo {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .update-photo:hover {
+            transform: scale(1.05);
+        }
+
+        .photo-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .modal-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 10px;
+            transition: transform 0.2s;
+        }
+
+        .close-modal:hover {
+            transform: scale(1.1);
+        }
+
+        .loading-indicator {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .journey-photo {
+                max-width: 100%;
+            }
+
+            .update-entry {
+                grid-template-columns: 1fr;
+            }
+
+            .update-photo {
+                width: 100%;
+                height: 200px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🪨 Happy Stones Dashboard</h1>
         
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading-indicator">
+            Loading...
+        </div>
+
+        <!-- Photo Modal -->
+        <div id="photoModal" class="photo-modal">
+            <div class="modal-content">
+                <button class="close-modal" onclick="closePhotoModal()">×</button>
+                <img id="modalImage" src="" alt="Stone location">
+            </div>
+        </div>
+
         <div class="stats">
             <div class="stat-card">
                 <h3>Total Stones</h3>
@@ -200,7 +329,7 @@
     </div>
 
     <script>
-        // Firebase configuration
+        // Initialize Firebase first
         const firebaseConfig = {
             apiKey: "AIzaSyBVMOTMubOV8Y1iEpK-E0TqZC5MptS6jpk",
             authDomain: "happy-stone-tracker.firebaseapp.com",
@@ -212,10 +341,22 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
+        const app = firebase.initializeApp(firebaseConfig);
+        
+        // Initialize Firestore and Storage after app initialization
         const db = firebase.firestore();
+        const storage = firebase.storage();
         let currentMap = null;
         let activeStoneId = null;
+
+        // Loading indicator functions
+        function showLoading() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
 
         async function getCoordinates(locationString) {
             try {
@@ -234,17 +375,28 @@
             }
         }
 
+        function openPhotoModal(url) {
+            const modal = document.getElementById('photoModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'flex';
+            modalImg.src = url;
+        }
+
+        function closePhotoModal() {
+            const modal = document.getElementById('photoModal');
+            modal.style.display = 'none';
+        }
+
         // Load recent updates across all stones
         async function loadRecentUpdates() {
             const recentUpdates = document.getElementById('recentUpdates');
             recentUpdates.innerHTML = '';
+            showLoading();
 
             try {
-                // Get all stones
                 const stonesSnapshot = await db.collection('stones').get();
                 let allUpdates = [];
 
-                // Collect updates from all stones
                 for (const stoneDoc of stonesSnapshot.docs) {
                     const journeysSnapshot = await stoneDoc.ref.collection('journeys')
                         .orderBy('timestamp', 'desc')
@@ -260,31 +412,48 @@
                     });
                 }
 
-                // Sort all updates by timestamp
                 allUpdates.sort((a, b) => b.timestamp - a.timestamp);
 
-                // Display the 20 most recent updates
                 allUpdates.slice(0, 20).forEach(update => {
                     const date = update.timestamp ? update.timestamp.toDate().toLocaleDateString() : 'Recent';
                     const time = update.timestamp ? update.timestamp.toDate().toLocaleTimeString() : '';
                     
                     const entry = document.createElement('div');
                     entry.className = 'update-entry';
+                    
+                    let photoHtml = '';
+                    if (update.photoData && update.photoData.url) {
+                        photoHtml = `
+                            <img src="${update.photoData.url}" 
+                                alt="Stone location" 
+                                class="update-photo"
+                                onclick="openPhotoModal('${update.photoData.url}')"
+                                loading="lazy"
+                            >
+                        `;
+                    }
+
                     entry.innerHTML = `
-                        <h3>Stone #${update.stoneId} - 📍 ${update.location}</h3>
-                        <p>${update.message}</p>
-                        <p class="timestamp">${date} ${time}</p>
+                        <div class="update-content">
+                            <h3>Stone #${update.stoneId} - 📍 ${update.location}</h3>
+                            <p>${update.message}</p>
+                            <p class="timestamp">${date} ${time}</p>
+                        </div>
+                        ${photoHtml}
                     `;
                     recentUpdates.appendChild(entry);
                 });
 
             } catch (error) {
                 console.error("Error loading recent updates:", error);
+            } finally {
+                hideLoading();
             }
         }
 
         // Load all stones
         async function loadStones() {
+            showLoading();
             try {
                 const snapshot = await db.collection('stones').get();
                 const stonesGrid = document.getElementById('stonesGrid');
@@ -309,11 +478,12 @@
                         }
                     }
 
+                    // Create stone card without photo
                     const card = document.createElement('div');
                     card.className = 'stone-card';
                     card.innerHTML = `
                         <h3>#${doc.id}</h3>
-                        <p>${journeyCount}</p>
+                        <p>${journeyCount} journeys</p>
                     `;
                     card.onclick = () => selectStone(doc.id);
                     stonesGrid.appendChild(card);
@@ -325,6 +495,8 @@
 
             } catch (error) {
                 console.error("Error loading stones:", error);
+            } finally {
+                hideLoading();
             }
         }
 
@@ -338,9 +510,13 @@
                 maxZoom: 19,
                 attribution: '© OpenStreetMap'
             }).addTo(currentMap);
+
+            // Add a scale control to the map
+            L.control.scale().addTo(currentMap);
         }
 
         async function selectStone(stoneId) {
+            showLoading();
             activeStoneId = stoneId;
             
             document.querySelectorAll('.stone-card').forEach(card => {
@@ -364,6 +540,7 @@
 
                 const coordinates = [];
                 const markers = [];
+                const bounds = L.latLngBounds();
 
                 const orderedDocs = [...journeysSnapshot.docs].reverse();
                 
@@ -377,10 +554,28 @@
 
                     if (coords) {
                         coordinates.push([coords.lat, coords.lon]);
+                        bounds.extend([coords.lat, coords.lon]);
+                        
+                        let popupContent = `
+                            <div style="max-width: 200px;">
+                                <b>${data.location}</b>
+                                <p style="margin: 5px 0;">${data.message}</p>
+                        `;
+                        
+                        if (data.photoData && data.photoData.url) {
+                            popupContent += `
+                                <img src="${data.photoData.url}" 
+                                    style="width: 100%; border-radius: 4px; margin-top: 5px; cursor: pointer;"
+                                    onclick="openPhotoModal('${data.photoData.url}')"
+                                >
+                            `;
+                        }
+                        
+                        popupContent += '</div>';
                         
                         const marker = L.marker([coords.lat, coords.lon])
                             .addTo(currentMap)
-                            .bindPopup(`<b>${data.location}</b><br>${data.message}`);
+                            .bindPopup(popupContent);
                         markers.push(marker);
                     }
                 }
@@ -389,10 +584,12 @@
                     const path = L.polyline(coordinates, {
                         color: '#3498db',
                         weight: 3,
-                        opacity: 0.8
+                        opacity: 0.8,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                        dashArray: '5, 10'
                     }).addTo(currentMap);
 
-                    const bounds = L.latLngBounds(coordinates);
                     currentMap.fitBounds(bounds, { padding: [50, 50] });
                 }
 
@@ -401,10 +598,23 @@
                     const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Recent';
                     const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString() : '';
                     
+                    let photoHtml = '';
+                    if (data.photoData && data.photoData.url) {
+                        photoHtml = `
+                            <img src="${data.photoData.url}" 
+                                alt="Stone location" 
+                                class="journey-photo"
+                                onclick="openPhotoModal('${data.photoData.url}')"
+                                loading="lazy"
+                            >
+                        `;
+                    }
+
                     const entry = document.createElement('div');
                     entry.className = 'journey-entry';
                     entry.innerHTML = `
                         <h3>📍 ${data.location}</h3>
+                        ${photoHtml}
                         <p>${data.message}</p>
                         <p style="color: #666; font-size: 0.9em;">${date} ${time}</p>
                     `;
@@ -413,6 +623,8 @@
 
             } catch (error) {
                 console.error("Error loading stone journeys:", error);
+            } finally {
+                hideLoading();
             }
         }
 
@@ -421,6 +633,27 @@
             loadStones();
             loadRecentUpdates();
             initMap();
+
+            // Event listeners for modal
+            document.getElementById('photoModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closePhotoModal();
+                }
+            });
+
+            // Handle escape key for modal
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closePhotoModal();
+                }
+            });
+
+            // Handle window resize for map
+            window.addEventListener('resize', function() {
+                if (currentMap) {
+                    currentMap.invalidateSize();
+                }
+            });
         };
     </script>
 </body>
