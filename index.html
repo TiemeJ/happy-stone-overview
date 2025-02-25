@@ -425,7 +425,7 @@
                     if (update.photoData && update.photoData.url) {
                         photoHtml = `
                             <img src="${update.photoData.url}" 
-                                alt="Stone location" 
+                                alt="Stone photo" 
                                 class="update-photo"
                                 onclick="openPhotoModal('${update.photoData.url}')"
                                 loading="lazy"
@@ -435,7 +435,7 @@
 
                     entry.innerHTML = `
                         <div class="update-content">
-                            <h3>Stone #${update.stoneId} - 📍 ${update.location}</h3>
+                            <h3>#${update.stoneId}</h3>
                             <p>${update.message}</p>
                             <p class="timestamp">${date} ${time}</p>
                         </div>
