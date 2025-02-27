@@ -258,6 +258,97 @@
             z-index: 1000;
         }
 
+        /* Admin upload section */
+        .admin-upload-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .admin-upload-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+
+        .file-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .file-input-container input[type="file"] {
+            display: none;
+        }
+
+        .custom-file-upload {
+            display: inline-block;
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #f1f3f5;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            font-size: 0.9em;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .custom-file-upload:hover {
+            background: #e9ecef;
+        }
+
+        .upload-btn {
+            background: #84fab0;
+            color: #2c3e50;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-btn:hover {
+            background: #5ae296;
+            transform: translateY(-2px);
+        }
+
+        .upload-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .file-name {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .stone-feature-image {
+            max-width: 300px;
+            border-radius: 8px;
+            margin: 10px auto;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: block;
+            border: 4px solid white;
+        }
+
+        .stone-feature-image:hover {
+            transform: scale(1.02);
+        }
+
+        .feature-photo-container {
+            background: #f0fff4 !important;
+            border-left: 4px solid #84fab0 !important;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -267,7 +358,7 @@
                 padding: 15px;
             }
 
-            .journey-photo {
+            .journey-photo, .stone-feature-image {
                 max-width: 100%;
             }
 
@@ -348,6 +439,7 @@
         const storage = firebase.storage();
         let currentMap = null;
         let activeStoneId = null;
+        let selectedFile = null;
 
         // Loading indicator functions
         function showLoading() {
@@ -385,6 +477,124 @@
         function closePhotoModal() {
             const modal = document.getElementById('photoModal');
             modal.style.display = 'none';
+        }
+
+        // File input handling
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            document.getElementById('fileName').textContent = selectedFile ? selectedFile.name : '';
+            document.getElementById('uploadBtn').disabled = !selectedFile;
+        }
+
+        // Upload stone photo
+        async function uploadStonePhoto() {
+            if (!selectedFile || !activeStoneId) return;
+            
+            showLoading();
+            try {
+                console.log(`Uploading photo for stone #${activeStoneId}`);
+                
+                // Create a reference to the file in Firebase Storage
+                // Use simple naming with just the stoneID
+                const storageRef = storage.ref(`stones/${activeStoneId}/${activeStoneId}`);
+                
+                // Upload the file
+                const uploadTask = storageRef.put(selectedFile);
+                
+                // Listen for upload completion
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        // Progress handling if needed
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        console.log('Upload is ' + progress + '% done');
+                    }, 
+                    (error) => {
+                        // Error handling
+                        console.error("Error uploading file:", error);
+                        hideLoading();
+                        alert("Error uploading file: " + error.message);
+                    }, 
+                    async () => {
+                        try {
+                            // Upload completed successfully
+                            const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                            console.log("File uploaded successfully. URL:", downloadURL);
+                            
+                            try {
+                                // Store the reference in Firestore
+                                await db.collection('stones').doc(activeStoneId).update({
+                                    featurePhoto: {
+                                        url: downloadURL,
+                                        filename: selectedFile.name,
+                                        uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                    }
+                                });
+                                console.log("Firestore updated with new photo URL");
+                            } catch (firestoreError) {
+                                console.error("Firestore update error:", firestoreError);
+                                // Continue even if Firestore update fails - we still have the image URL
+                            }
+                            
+                            // Reset the file input
+                            document.getElementById('fileInput').value = '';
+                            document.getElementById('fileName').textContent = '';
+                            document.getElementById('uploadBtn').disabled = true;
+                            selectedFile = null;
+                            
+                            // Display the photo directly instead of reloading
+                            const journeyDetails = document.getElementById('journeyDetails');
+                            
+                            // Check if there's already a feature photo container
+                            let featurePhotoContainer = journeyDetails.querySelector('.feature-photo-container');
+                            
+                            if (!featurePhotoContainer) {
+                                // Create feature photo container if it doesn't exist
+                                featurePhotoContainer = document.createElement('div');
+                                featurePhotoContainer.className = 'admin-upload-section feature-photo-container';
+                                
+                                // Find the upload section to insert after it
+                                const uploadSection = journeyDetails.querySelector('.admin-upload-section');
+                                if (uploadSection) {
+                                    uploadSection.after(featurePhotoContainer);
+                                } else {
+                                    journeyDetails.appendChild(featurePhotoContainer);
+                                }
+                            }
+                            
+                            // Update the feature photo content
+                            featurePhotoContainer.innerHTML = `
+                                <h3>Stone Feature Photo</h3>
+                                <img src="${downloadURL}" 
+                                    alt="Stone #${activeStoneId}" 
+                                    class="stone-feature-image"
+                                    onclick="openPhotoModal('${downloadURL}')"
+                                >
+                                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                                    Uploaded: Just now
+                                </p>
+                            `;
+                            
+                            hideLoading();
+                            alert("Photo uploaded successfully!");
+                            
+                            // Scroll to the feature photo section
+                            setTimeout(() => {
+                                if (featurePhotoContainer) {
+                                    featurePhotoContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 100);
+                        } catch (error) {
+                            console.error("Error processing upload completion:", error);
+                            hideLoading();
+                            alert("Photo uploaded successfully, but there was an issue displaying it. Please refresh the page.");
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error("Error in upload process:", error);
+                hideLoading();
+                alert("Error in upload process: " + error.message);
+            }
         }
 
         // Load recent updates across all stones
@@ -451,7 +661,56 @@
             }
         }
 
-        // Load all stones
+        // Modified: Load stone card with feature photo if available but return the card instead of appending it
+        async function loadStoneCard(doc) {
+            try {
+                const journeysSnapshot = await doc.ref.collection('journeys')
+                    .orderBy('timestamp', 'desc')
+                    .get();
+                
+                const journeyCount = journeysSnapshot.size;
+                
+                // Get stone data to check for feature photo
+                const stoneData = doc.data() || {};
+                
+                // Create stone card
+                const card = document.createElement('div');
+                card.className = 'stone-card';
+                card.dataset.stoneId = doc.id;
+                
+                // Check if this stone has a feature photo
+                let hasPhoto = stoneData.featurePhoto && stoneData.featurePhoto.url;
+                
+                // If no photo in Firestore, check Storage directly
+                if (!hasPhoto) {
+                    try {
+                        const storageRef = storage.ref(`stones/${doc.id}/${doc.id}`);
+                        await storageRef.getDownloadURL();
+                        hasPhoto = true;
+                    } catch (err) {
+                        // No photo in Storage either
+                        hasPhoto = false;
+                    }
+                }
+                
+                // Add photo indicator if there's a photo
+                card.innerHTML = `
+                    <h3>#${doc.id}</h3>
+                    ${hasPhoto ? '<div style="color: #84fab0; margin-top: 2px;">📷</div>' : ''}
+                    <p>${journeyCount} journeys</p>
+                `;
+                
+                card.onclick = () => selectStone(doc.id);
+                
+                // Return card and journeyCount instead of appending directly
+                return { card, journeyCount };
+            } catch (error) {
+                console.error(`Error loading stone card ${doc.id}:`, error);
+                return { card: null, journeyCount: 0 };
+            }
+        }
+
+        // Modified: Load all stones with proper ordering
         async function loadStones() {
             showLoading();
             try {
@@ -462,31 +721,50 @@
                 let totalJourneys = 0;
                 let activeThisMonth = 0;
                 const currentMonth = new Date().getMonth();
-
-                for (const doc of snapshot.docs) {
-                    const journeysSnapshot = await doc.ref.collection('journeys')
-                        .orderBy('timestamp', 'desc')
-                        .get();
+                
+                // Sort the stones by ID (numerically) before creating cards
+                const sortedDocs = [...snapshot.docs].sort((a, b) => {
+                    // Convert IDs to numbers for proper numeric sorting
+                    // If IDs are not numeric, this falls back to string comparison
+                    const idA = parseInt(a.id);
+                    const idB = parseInt(b.id);
                     
-                    const journeyCount = journeysSnapshot.size;
-                    totalJourneys += journeyCount;
-
-                    if (journeysSnapshot.size > 0) {
-                        const lastJourney = journeysSnapshot.docs[0].data().timestamp;
-                        if (lastJourney && lastJourney.toDate().getMonth() === currentMonth) {
+                    if (!isNaN(idA) && !isNaN(idB)) {
+                        return idA - idB; // Numeric sorting
+                    } else {
+                        return a.id.localeCompare(b.id); // String sorting as fallback
+                    }
+                });
+                
+                // Create an array of promises for loading each stone card
+                const loadPromises = sortedDocs.map(doc => loadStoneCard(doc));
+                
+                // Wait for all stone cards to be loaded
+                const results = await Promise.all(loadPromises);
+                
+                // Add cards to the grid in the correct order (same as sortedDocs)
+                for (let i = 0; i < results.length; i++) {
+                    const { card, journeyCount } = results[i];
+                    if (card) {
+                        stonesGrid.appendChild(card);
+                        totalJourneys += journeyCount;
+                    }
+                }
+                
+                // Check which stones are active this month
+                for (let i = 0; i < sortedDocs.length; i++) {
+                    const doc = sortedDocs[i];
+                    const lastJourneySnapshot = await doc.ref.collection('journeys')
+                        .orderBy('timestamp', 'desc')
+                        .limit(1)
+                        .get();
+                        
+                    if (!lastJourneySnapshot.empty) {
+                        const data = lastJourneySnapshot.docs[0].data();
+                        if (data.timestamp && data.timestamp.toDate().getMonth() === currentMonth) {
                             activeThisMonth++;
                         }
                     }
-
-                    // Create stone card without photo
-                    const card = document.createElement('div');
-                    card.className = 'stone-card';
-                    card.innerHTML = `
-                        <h3>#${doc.id}</h3>
-                        <p>${journeyCount} journeys</p>
-                    `;
-                    card.onclick = () => selectStone(doc.id);
-                    stonesGrid.appendChild(card);
                 }
 
                 document.getElementById('totalStones').textContent = snapshot.size;
@@ -519,9 +797,11 @@
             showLoading();
             activeStoneId = stoneId;
             
+            console.log(`Selecting stone #${stoneId}`);
+            
             document.querySelectorAll('.stone-card').forEach(card => {
                 card.classList.remove('active');
-                if (card.querySelector('h3').textContent === `#${stoneId}`) {
+                if (card.dataset.stoneId === stoneId) {
                     card.classList.add('active');
                 }
             });
@@ -529,14 +809,95 @@
             initMap();
 
             try {
+                // Fetch stone document to get feature photo
+                const stoneDoc = await db.collection('stones').doc(stoneId).get();
+                const stoneData = stoneDoc.data() || {};
+                
+                // Clear journey details and set title
+                const journeyDetails = document.getElementById('journeyDetails');
+                journeyDetails.innerHTML = `<h2>Stone #${stoneId} Journey History</h2>`;
+                
+                // Add admin upload section
+                const uploadSection = document.createElement('div');
+                uploadSection.className = 'admin-upload-section';
+                uploadSection.innerHTML = `
+                    <h3>Admin: Upload Stone Feature Photo</h3>
+                    <div class="file-input-container">
+                        <label for="fileInput" class="custom-file-upload">
+                            Choose File
+                        </label>
+                        <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+                        <div id="fileName" class="file-name"></div>
+                    </div>
+                    <button id="uploadBtn" class="upload-btn" onclick="uploadStonePhoto()" disabled>Upload Photo</button>
+                `;
+                journeyDetails.appendChild(uploadSection);
+                
+                // Try to get photo URL - first from Firestore, then from Storage
+                let photoUrl = null;
+                let uploadDate = 'Recently';
+                
+                // Check if the stone has a feature photo in Firestore
+                if (stoneData.featurePhoto && stoneData.featurePhoto.url) {
+                    photoUrl = stoneData.featurePhoto.url;
+                    if (stoneData.featurePhoto.uploadedAt) {
+                        const date = stoneData.featurePhoto.uploadedAt.toDate();
+                        uploadDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                    }
+                } else {
+                    // If not in Firestore, try to get directly from Storage
+                    try {
+                        console.log("Checking Storage for photo: ", `stones/${stoneId}/${stoneId}`);
+                        const storageRef = storage.ref(`stones/${stoneId}/${stoneId}`);
+                        photoUrl = await storageRef.getDownloadURL();
+                        console.log("Found photo directly in Storage:", photoUrl);
+                        
+                        // Update Firestore with the photo URL for future reference
+                        try {
+                            await db.collection('stones').doc(stoneId).update({
+                                featurePhoto: {
+                                    url: photoUrl,
+                                    uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                }
+                            });
+                            console.log("Updated Firestore with Storage photo URL");
+                        } catch (updateError) {
+                            console.error("Error updating Firestore with photo URL:", updateError);
+                        }
+                    } catch (storageError) {
+                        console.log("No feature photo found in Storage:", storageError);
+                    }
+                }
+                
+                // Display feature photo if it exists
+                if (photoUrl) {
+                    console.log("Displaying photo:", photoUrl);
+                    const featurePhotoContainer = document.createElement('div');
+                    featurePhotoContainer.className = 'admin-upload-section feature-photo-container';
+                    featurePhotoContainer.style.textAlign = 'center';
+                    featurePhotoContainer.style.margin = '20px 0';
+                    
+                    featurePhotoContainer.innerHTML = `
+                        <h3>Stone Feature Photo</h3>
+                        <img src="${photoUrl}" 
+                            alt="Stone #${stoneId}" 
+                            class="stone-feature-image"
+                            onclick="openPhotoModal('${photoUrl}')"
+                        >
+                        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                            Uploaded: ${uploadDate}
+                        </p>
+                    `;
+                    journeyDetails.appendChild(featurePhotoContainer);
+                } else {
+                    console.log("No photo found for this stone");
+                }
+
                 const journeysSnapshot = await db.collection('stones')
                     .doc(stoneId)
                     .collection('journeys')
                     .orderBy('timestamp', 'desc')
                     .get();
-
-                const journeyDetails = document.getElementById('journeyDetails');
-                journeyDetails.innerHTML = `<h2>Stone #${stoneId} Journey History</h2>`;
 
                 const coordinates = [];
                 const markers = [];
