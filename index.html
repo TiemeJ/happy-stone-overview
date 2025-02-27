@@ -285,7 +285,7 @@
         }
 
         .custom-file-upload {
-            display: inline-block;
+            display: block;
             padding: 8px 16px;
             cursor: pointer;
             background: #f1f3f5;
@@ -294,6 +294,7 @@
             font-size: 0.9em;
             transition: all 0.2s;
             text-align: center;
+            margin-bottom: 10px;
         }
 
         .custom-file-upload:hover {
@@ -304,11 +305,13 @@
             background: #84fab0;
             color: #2c3e50;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 12px;
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
+            margin-top: 10px;
+            font-size: 0.9em;
         }
 
         .upload-btn:hover {
@@ -329,7 +332,9 @@
         }
 
         .stone-feature-image {
-            max-width: 300px;
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
             border-radius: 8px;
             margin: 10px auto;
             cursor: pointer;
@@ -340,7 +345,7 @@
         }
 
         .stone-feature-image:hover {
-            transform: scale(1.02);
+            transform: scale(1.05);
         }
 
         .feature-photo-container {
@@ -544,35 +549,23 @@
                             // Display the photo directly instead of reloading
                             const journeyDetails = document.getElementById('journeyDetails');
                             
-                            // Check if there's already a feature photo container
+                            // Find the feature photo container in the new layout
                             let featurePhotoContainer = journeyDetails.querySelector('.feature-photo-container');
                             
-                            if (!featurePhotoContainer) {
-                                // Create feature photo container if it doesn't exist
-                                featurePhotoContainer = document.createElement('div');
-                                featurePhotoContainer.className = 'admin-upload-section feature-photo-container';
-                                
-                                // Find the upload section to insert after it
-                                const uploadSection = journeyDetails.querySelector('.admin-upload-section');
-                                if (uploadSection) {
-                                    uploadSection.after(featurePhotoContainer);
-                                } else {
-                                    journeyDetails.appendChild(featurePhotoContainer);
-                                }
-                            }
-                            
                             // Update the feature photo content
-                            featurePhotoContainer.innerHTML = `
-                                <h3>Stone Feature Photo</h3>
-                                <img src="${downloadURL}" 
-                                    alt="Stone #${activeStoneId}" 
-                                    class="stone-feature-image"
-                                    onclick="openPhotoModal('${downloadURL}')"
-                                >
-                                <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                                    Uploaded: Just now
-                                </p>
-                            `;
+                            if (featurePhotoContainer) {
+                                featurePhotoContainer.innerHTML = `
+                                    <h3 style="font-size: 0.9em; margin-top: 0;">Feature Photo</h3>
+                                    <img src="${downloadURL}" 
+                                        alt="Stone #${activeStoneId}" 
+                                        class="stone-feature-image"
+                                        onclick="openPhotoModal('${downloadURL}')"
+                                    >
+                                    <p style="margin-top: 5px; color: #666; font-size: 0.7em;">
+                                        Just now
+                                    </p>
+                                `;
+                            }
                             
                             hideLoading();
                             alert("Photo uploaded successfully!");
@@ -817,21 +810,34 @@
                 const journeyDetails = document.getElementById('journeyDetails');
                 journeyDetails.innerHTML = `<h2>Stone #${stoneId} Journey History</h2>`;
                 
+                // Create a flex container for admin section and feature photo
+                const flexContainer = document.createElement('div');
+                flexContainer.style.display = 'flex';
+                flexContainer.style.gap = '20px';
+                flexContainer.style.marginBottom = '20px';
+                flexContainer.style.justifyContent = 'center';
+                journeyDetails.appendChild(flexContainer);
+                
                 // Add admin upload section
                 const uploadSection = document.createElement('div');
                 uploadSection.className = 'admin-upload-section';
+                uploadSection.style.flex = '0 0 170px'; // Match the photo container width
+                uploadSection.style.minHeight = '220px';
+                uploadSection.style.padding = '10px';
+                uploadSection.style.display = 'flex';
+                uploadSection.style.flexDirection = 'column';
                 uploadSection.innerHTML = `
-                    <h3>Admin: Upload Stone Feature Photo</h3>
-                    <div class="file-input-container">
+                    <h3 style="font-size: 0.9em; margin-top: 0;">Upload Stone Photo</h3>
+                    <div class="file-input-container" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
                         <label for="fileInput" class="custom-file-upload">
                             Choose File
                         </label>
                         <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
                         <div id="fileName" class="file-name"></div>
+                        <button id="uploadBtn" class="upload-btn" onclick="uploadStonePhoto()" disabled>Upload</button>
                     </div>
-                    <button id="uploadBtn" class="upload-btn" onclick="uploadStonePhoto()" disabled>Upload Photo</button>
                 `;
-                journeyDetails.appendChild(uploadSection);
+                flexContainer.appendChild(uploadSection);
                 
                 // Try to get photo URL - first from Firestore, then from Storage
                 let photoUrl = null;
@@ -869,29 +875,43 @@
                     }
                 }
                 
+                // Create feature photo container (displayed or empty)
+                const featurePhotoContainer = document.createElement('div');
+                featurePhotoContainer.className = 'admin-upload-section feature-photo-container';
+                featurePhotoContainer.style.flex = '0 0 170px'; // Fixed width for the thumbnail container
+                featurePhotoContainer.style.minHeight = '220px';
+                featurePhotoContainer.style.textAlign = 'center';
+                featurePhotoContainer.style.display = 'flex';
+                featurePhotoContainer.style.flexDirection = 'column';
+                featurePhotoContainer.style.justifyContent = 'center';
+                featurePhotoContainer.style.padding = '10px';
+                
                 // Display feature photo if it exists
                 if (photoUrl) {
                     console.log("Displaying photo:", photoUrl);
-                    const featurePhotoContainer = document.createElement('div');
-                    featurePhotoContainer.className = 'admin-upload-section feature-photo-container';
-                    featurePhotoContainer.style.textAlign = 'center';
-                    featurePhotoContainer.style.margin = '20px 0';
-                    
                     featurePhotoContainer.innerHTML = `
-                        <h3>Stone Feature Photo</h3>
+                        <h3 style="font-size: 0.9em; margin-top: 0;">Stone Photo</h3>
                         <img src="${photoUrl}" 
                             alt="Stone #${stoneId}" 
                             class="stone-feature-image"
                             onclick="openPhotoModal('${photoUrl}')"
                         >
-                        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                            Uploaded: ${uploadDate}
+                        <p style="margin-top: 5px; color: #666; font-size: 0.7em;">
+                            ${uploadDate}
                         </p>
                     `;
-                    journeyDetails.appendChild(featurePhotoContainer);
                 } else {
+                                            featurePhotoContainer.innerHTML = `
+                        <h3 style="font-size: 0.9em; margin-top: 0;">Feature Photo</h3>
+                        <div style="width: 150px; height: 150px; margin: 5px auto; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 8px; border: 1px dashed #ccc;">
+                            <p style="color: #666; margin: 0; font-size: 0.8em;">No photo yet</p>
+                        </div>
+                    `;
                     console.log("No photo found for this stone");
                 }
+                
+                // Add the feature photo container to the flex container
+                flexContainer.appendChild(featurePhotoContainer);
 
                 const journeysSnapshot = await db.collection('stones')
                     .doc(stoneId)
