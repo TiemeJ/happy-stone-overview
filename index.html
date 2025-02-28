@@ -987,7 +987,7 @@
                             // Update the feature photo content
                             if (featurePhotoContainer) {
                                 featurePhotoContainer.innerHTML = `
-                                    <h3 style="font-size: 0.9em; margin-top: 0;">Feature Photo</h3>
+                                    <h3 style="font-size: 0.9em; margin-top: 0;">Stone Photo</h3>
                                     <img src="${downloadURL}" 
                                         alt="Stone #${activeStoneId}" 
                                         class="stone-feature-image"
@@ -1436,18 +1436,17 @@
                                 }
                             }
                             
-                            // Prepare popup content
+                            // Prepare popup content - MADE MORE COMPACT (location removed)
                             let popupContent = `
-                                <div style="text-align: center; max-width: 200px;">
-                                    <h3 style="margin: 5px 0;">Stone #${stoneId}</h3>
-                                    <p style="margin: 5px 0;">${journeyData.location}</p>
+                                <div style="text-align: center; max-width: 100px;">
+                                    <h3 style="margin: 3px 0; font-size: 0.85em;">Stone #${stoneId}</h3>
                             `;
                             
-                            // Add photo if available
+                            // Add photo if available - MADE MORE COMPACT
                             if (photoUrl) {
                                 popupContent += `
                                     <img src="${photoUrl}" 
-                                        style="width: 180px; border-radius: 5px; margin-top: 8px; cursor: pointer;"
+                                        style="width: 90px; height: 90px; object-fit: cover; border-radius: 3px; margin-top: 4px; cursor: pointer;"
                                         onclick="openPhotoModal('${photoUrl}')"
                                     >
                                 `;
@@ -1455,14 +1454,14 @@
                                 // Use journey photo if stone photo not available
                                 popupContent += `
                                     <img src="${journeyData.photoData.url}" 
-                                        style="width: 180px; border-radius: 5px; margin-top: 8px; cursor: pointer;"
+                                        style="width: 90px; height: 90px; object-fit: cover; border-radius: 3px; margin-top: 4px; cursor: pointer;"
                                         onclick="openPhotoModal('${journeyData.photoData.url}')"
                                     >
                                 `;
                             }
                             
                             popupContent += `
-                                <p style="margin: 5px 0; font-size: 0.9em; cursor: pointer; color: #4a90e2;" 
+                                <p style="margin: 3px 0; font-size: 0.7em; cursor: pointer; color: #4a90e2;" 
                                    onclick="selectStone('${stoneId}')">
                                    View Journey History
                                 </p>
