@@ -42,6 +42,83 @@
             margin-top: 20px;
         }
 
+        /* Folders grid */
+        .folders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .folder-card {
+            background: #f1f9fe;
+            padding: 15px 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #d1e3fa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .folder-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            background: #e4f3ff;
+        }
+
+        .folder-card.active {
+            border: 2px solid #84fab0;
+            background: #e4ffef;
+        }
+
+        .folder-icon {
+            font-size: 2.2em;
+            color: #4a90e2;
+            margin-bottom: 8px;
+        }
+
+        .folder-card.active .folder-icon {
+            color: #0ead69;
+        }
+
+        .folder-card h3 {
+            margin: 0;
+            font-size: 0.9em;
+            color: #2c3e50;
+        }
+
+        .folder-card p {
+            margin: 5px 0 0;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        /* Back button */
+        .back-button {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            border: 1px solid #e0e0e0;
+            transition: all 0.2s;
+            font-size: 0.9em;
+            color: #2c3e50;
+        }
+
+        .back-button:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        /* Stones grid */
         .stones-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
@@ -375,6 +452,10 @@
                 width: 100%;
                 height: 200px;
             }
+            
+            .folders-grid {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
         }
     </style>
 </head>
@@ -417,7 +498,21 @@
             </div>
 
             <div class="main-content">
-                <div class="stones-grid" id="stonesGrid"></div>
+                <!-- Folders view -->
+                <div id="foldersView">
+                    <h2>Stone Collections</h2>
+                    <div class="folders-grid" id="foldersGrid"></div>
+                </div>
+                
+                <!-- Stones view (initially hidden) -->
+                <div id="stonesView" style="display: none;">
+                    <div class="back-button" onclick="showFolders()">
+                        <span>←</span> Back to Collections
+                    </div>
+                    <h2 id="currentFolderTitle">Stones</h2>
+                    <div class="stones-grid" id="stonesGrid"></div>
+                </div>
+                
                 <div id="journeyMap"></div>
                 <div class="journey-details" id="journeyDetails"></div>
             </div>
@@ -445,6 +540,8 @@
         let currentMap = null;
         let activeStoneId = null;
         let selectedFile = null;
+        let currentFolderId = null;
+        let allStones = []; // Store all stones data
 
         // Loading indicator functions
         function showLoading() {
@@ -453,6 +550,76 @@
 
         function hideLoading() {
             document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        // Function to show folders view and hide stones view
+        function showFolders() {
+            document.getElementById('foldersView').style.display = 'block';
+            document.getElementById('stonesView').style.display = 'none';
+            currentFolderId = null;
+            
+            // Remove active class from all folder cards
+            document.querySelectorAll('.folder-card').forEach(card => {
+                card.classList.remove('active');
+            });
+        }
+
+        // Function to show stones in a specific folder
+        function showStonesInFolder(folderId, folderName) {
+            currentFolderId = folderId;
+            
+            console.log(`Opening folder ${folderId}: ${folderName}`);
+            
+            // Update active folder
+            document.querySelectorAll('.folder-card').forEach(card => {
+                card.classList.remove('active');
+                if (card.dataset.folderId === folderId) {
+                    card.classList.add('active');
+                }
+            });
+            
+            // Update folder title
+            document.getElementById('currentFolderTitle').textContent = folderName;
+            
+            // Show stones view, hide folders view
+            document.getElementById('foldersView').style.display = 'none';
+            document.getElementById('stonesView').style.display = 'block';
+            
+            // Clear stones grid
+            const stonesGrid = document.getElementById('stonesGrid');
+            stonesGrid.innerHTML = '';
+            
+            // Filter stones for this folder and display them
+            const [minStone, maxStone] = folderId.split('-').map(Number);
+            
+            console.log(`Filtering stones for range ${minStone}-${maxStone}`);
+            
+            const folderStones = allStones.filter(stone => {
+                // Extract numeric part from stone ID (handles both numeric IDs and IDs with prefixes)
+                const stoneIdStr = stone.id.toString();
+                const numericPart = stoneIdStr.replace(/\D/g, '');
+                const stoneNum = parseInt(numericPart);
+                
+                // Debug log
+                console.log(`Stone ${stoneIdStr}, numeric value: ${stoneNum}, in range ${minStone}-${maxStone}? ${stoneNum >= minStone && stoneNum <= maxStone}`);
+                
+                if (isNaN(stoneNum)) return false;
+                return stoneNum >= minStone && stoneNum <= maxStone;
+            });
+            
+            console.log(`Found ${folderStones.length} stones for folder ${folderId}`);
+            
+            // Sort stones by ID
+            folderStones.sort((a, b) => {
+                const numA = parseInt(a.id.toString().replace(/\D/g, ''));
+                const numB = parseInt(b.id.toString().replace(/\D/g, ''));
+                return numA - numB;
+            });
+            
+            // Create and append stone cards
+            folderStones.forEach(stone => {
+                stonesGrid.appendChild(stone.card);
+            });
         }
 
         async function getCoordinates(locationString) {
@@ -576,6 +743,10 @@
                                     featurePhotoContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }
                             }, 100);
+                            
+                            // Update the stone card in the current view
+                            updateStonePhotoIndicator(activeStoneId);
+                            
                         } catch (error) {
                             console.error("Error processing upload completion:", error);
                             hideLoading();
@@ -587,6 +758,24 @@
                 console.error("Error in upload process:", error);
                 hideLoading();
                 alert("Error in upload process: " + error.message);
+            }
+        }
+
+        // Update photo indicator on stone card after upload
+        function updateStonePhotoIndicator(stoneId) {
+            // Find the stone card
+            const stoneCard = document.querySelector(`.stone-card[data-stone-id="${stoneId}"]`);
+            if (stoneCard) {
+                // Check if photo indicator already exists
+                if (!stoneCard.querySelector('.photo-indicator')) {
+                    // Add photo indicator
+                    const photoIndicator = document.createElement('div');
+                    photoIndicator.className = 'photo-indicator';
+                    photoIndicator.style.color = '#84fab0';
+                    photoIndicator.style.marginTop = '2px';
+                    photoIndicator.innerHTML = '📷';
+                    stoneCard.insertBefore(photoIndicator, stoneCard.querySelector('p'));
+                }
             }
         }
 
@@ -654,22 +843,40 @@
             }
         }
 
-        // Modified: Load stone card with feature photo if available but return the card instead of appending it
-        async function loadStoneCard(doc) {
+        // Create stone card
+        async function createStoneCard(doc, journeyCount, hasPhoto) {
+            // Create stone card
+            const card = document.createElement('div');
+            card.className = 'stone-card';
+            card.dataset.stoneId = doc.id;
+            
+            // Add photo indicator if there's a photo
+            card.innerHTML = `
+                <h3>#${doc.id}</h3>
+                ${hasPhoto ? '<div style="color: #84fab0; margin-top: 2px;">📷</div>' : ''}
+                <p>${journeyCount} journeys</p>
+            `;
+            
+            card.onclick = () => selectStone(doc.id);
+            
+            return card;
+        }
+
+        // Modified: Load stone card info
+        async function loadStoneCardInfo(doc) {
             try {
+                // Debug log
+                console.log(`Loading stone card for ID: ${doc.id}`);
+                
                 const journeysSnapshot = await doc.ref.collection('journeys')
                     .orderBy('timestamp', 'desc')
                     .get();
                 
                 const journeyCount = journeysSnapshot.size;
+                console.log(`Stone ${doc.id} has ${journeyCount} journeys`);
                 
                 // Get stone data to check for feature photo
                 const stoneData = doc.data() || {};
-                
-                // Create stone card
-                const card = document.createElement('div');
-                card.className = 'stone-card';
-                card.dataset.stoneId = doc.id;
                 
                 // Check if this stone has a feature photo
                 let hasPhoto = stoneData.featurePhoto && stoneData.featurePhoto.url;
@@ -680,27 +887,100 @@
                         const storageRef = storage.ref(`stones/${doc.id}/${doc.id}`);
                         await storageRef.getDownloadURL();
                         hasPhoto = true;
+                        console.log(`Found photo for stone ${doc.id} in Storage`);
                     } catch (err) {
                         // No photo in Storage either
                         hasPhoto = false;
+                        console.log(`No photo found for stone ${doc.id}`);
                     }
+                } else {
+                    console.log(`Found photo for stone ${doc.id} in Firestore`);
                 }
                 
-                // Add photo indicator if there's a photo
-                card.innerHTML = `
-                    <h3>#${doc.id}</h3>
-                    ${hasPhoto ? '<div style="color: #84fab0; margin-top: 2px;">📷</div>' : ''}
-                    <p>${journeyCount} journeys</p>
-                `;
+                // Create card
+                const card = await createStoneCard(doc, journeyCount, hasPhoto);
                 
-                card.onclick = () => selectStone(doc.id);
-                
-                // Return card and journeyCount instead of appending directly
-                return { card, journeyCount };
+                // Return all the information
+                return { 
+                    id: doc.id,
+                    card: card, 
+                    journeyCount: journeyCount,
+                    hasPhoto: hasPhoto 
+                };
             } catch (error) {
                 console.error(`Error loading stone card ${doc.id}:`, error);
-                return { card: null, journeyCount: 0 };
+                return { id: doc.id, card: null, journeyCount: 0, hasPhoto: false };
             }
+        }
+
+        // Create folders based on stone grouping
+        function createFolders(stones) {
+            // Group stones into folders (1-8, 9-16, 17-24, etc.)
+            const folderGroups = {};
+            
+            // Debug
+            console.log(`Creating folders for ${stones.length} stones`);
+            
+            stones.forEach(stone => {
+                // Extract the numeric part from the stone ID
+                // This handles both numeric IDs and IDs with prefixes like "stone1"
+                const stoneIdStr = stone.id.toString();
+                const numericPart = stoneIdStr.replace(/\D/g, '');
+                const stoneNum = parseInt(numericPart);
+                
+                if (isNaN(stoneNum)) {
+                    console.warn(`Could not parse numeric ID from stone: ${stoneIdStr}`);
+                    return; // Skip this stone
+                }
+                
+                // Calculate folder bounds
+                const folderIndex = Math.floor((stoneNum - 1) / 8);
+                const minStoneInFolder = folderIndex * 8 + 1;
+                const maxStoneInFolder = (folderIndex + 1) * 8;
+                const folderId = `${minStoneInFolder}-${maxStoneInFolder}`;
+                
+                if (!folderGroups[folderId]) {
+                    folderGroups[folderId] = [];
+                }
+                
+                folderGroups[folderId].push(stone);
+                console.log(`Added stone ${stoneIdStr} (numeric: ${stoneNum}) to folder ${folderId}`);
+            });
+            
+            // Create folder cards
+            const foldersGrid = document.getElementById('foldersGrid');
+            foldersGrid.innerHTML = '';
+            
+            // Sort folder IDs numerically
+            const sortedFolderIds = Object.keys(folderGroups).sort((a, b) => {
+                const [minA] = a.split('-').map(Number);
+                const [minB] = b.split('-').map(Number);
+                return minA - minB;
+            });
+            
+            console.log(`Created ${sortedFolderIds.length} folders: ${sortedFolderIds.join(', ')}`);
+            
+            sortedFolderIds.forEach(folderId => {
+                const stones = folderGroups[folderId];
+                const [minStone, maxStone] = folderId.split('-');
+                const folderName = `Stones ${minStone}-${maxStone}`;
+                
+                // Count stones with photos
+                const stonesWithPhotos = stones.filter(stone => stone.hasPhoto).length;
+                
+                const folderCard = document.createElement('div');
+                folderCard.className = 'folder-card';
+                folderCard.dataset.folderId = folderId;
+                
+                folderCard.innerHTML = `
+                    <div class="folder-icon">📁</div>
+                    <h3>${folderName}</h3>
+                    <p>${stones.length} stones</p>
+                `;
+                
+                folderCard.onclick = () => showStonesInFolder(folderId, folderName);
+                foldersGrid.appendChild(folderCard);
+            });
         }
 
         // Modified: Load all stones with proper ordering
@@ -708,41 +988,42 @@
             showLoading();
             try {
                 const snapshot = await db.collection('stones').get();
-                const stonesGrid = document.getElementById('stonesGrid');
-                stonesGrid.innerHTML = '';
+                
+                console.log(`Loaded ${snapshot.size} stones from Firestore`);
+                
+                // Debug: Log all stone IDs
+                console.log("Stone IDs from Firestore:", snapshot.docs.map(doc => doc.id));
                 
                 let totalJourneys = 0;
                 let activeThisMonth = 0;
                 const currentMonth = new Date().getMonth();
                 
-                // Sort the stones by ID (numerically) before creating cards
+                // Handle both numeric IDs and string IDs that might contain "stone" prefix
                 const sortedDocs = [...snapshot.docs].sort((a, b) => {
-                    // Convert IDs to numbers for proper numeric sorting
-                    // If IDs are not numeric, this falls back to string comparison
-                    const idA = parseInt(a.id);
-                    const idB = parseInt(b.id);
+                    // Extract numeric parts from IDs (removing any non-digit characters)
+                    const numA = parseInt(a.id.toString().replace(/\D/g, ''));
+                    const numB = parseInt(b.id.toString().replace(/\D/g, ''));
                     
-                    if (!isNaN(idA) && !isNaN(idB)) {
-                        return idA - idB; // Numeric sorting
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB; // Numeric sorting
                     } else {
                         return a.id.localeCompare(b.id); // String sorting as fallback
                     }
                 });
                 
                 // Create an array of promises for loading each stone card
-                const loadPromises = sortedDocs.map(doc => loadStoneCard(doc));
+                const loadPromises = sortedDocs.map(doc => loadStoneCardInfo(doc));
                 
                 // Wait for all stone cards to be loaded
                 const results = await Promise.all(loadPromises);
                 
-                // Add cards to the grid in the correct order (same as sortedDocs)
-                for (let i = 0; i < results.length; i++) {
-                    const { card, journeyCount } = results[i];
-                    if (card) {
-                        stonesGrid.appendChild(card);
-                        totalJourneys += journeyCount;
-                    }
-                }
+                // Filter out any null results
+                allStones = results.filter(result => result.card !== null);
+                
+                console.log(`Successfully loaded ${allStones.length} stone cards`);
+                
+                // Calculate total journeys
+                totalJourneys = allStones.reduce((total, stone) => total + stone.journeyCount, 0);
                 
                 // Check which stones are active this month
                 for (let i = 0; i < sortedDocs.length; i++) {
@@ -760,9 +1041,13 @@
                     }
                 }
 
+                // Update stats
                 document.getElementById('totalStones').textContent = snapshot.size;
                 document.getElementById('totalJourneys').textContent = totalJourneys;
                 document.getElementById('activeStones').textContent = activeThisMonth;
+                
+                // Create folders based on stone grouping
+                createFolders(allStones);
 
             } catch (error) {
                 console.error("Error loading stones:", error);
@@ -901,7 +1186,7 @@
                         </p>
                     `;
                 } else {
-                                            featurePhotoContainer.innerHTML = `
+                    featurePhotoContainer.innerHTML = `
                         <h3 style="font-size: 0.9em; margin-top: 0;">Feature Photo</h3>
                         <div style="width: 150px; height: 150px; margin: 5px auto; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 8px; border: 1px dashed #ccc;">
                             <p style="color: #666; margin: 0; font-size: 0.8em;">No photo yet</p>
