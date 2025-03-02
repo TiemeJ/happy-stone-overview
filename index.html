@@ -162,14 +162,15 @@
             align-items: center;
         }
 
+        /* Updated for transparency */
         .best-stone-photo {
             width: 70px;
             height: 70px;
-            object-fit: cover;
+            object-fit: contain;
             border-radius: 8px;
             margin: 0;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            background: transparent;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
             cursor: pointer;
             transition: transform 0.2s;
         }
@@ -354,19 +355,22 @@
             font-weight: bold;
         }
 
+        /* Updated journey photo for transparency */
         .journey-photo {
             max-width: 200px;
             border-radius: 8px;
             margin: 10px 0;
             cursor: pointer;
             transition: transform 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            background: transparent;
         }
 
         .journey-photo:hover {
             transform: scale(1.05);
         }
 
+        /* Updated update photo for transparency */
         .update-photo {
             width: 100%;
             max-width: 250px;
@@ -375,7 +379,8 @@
             cursor: pointer;
             transition: transform 0.2s;
             margin-top: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            background: transparent;
             display: block;
         }
 
@@ -383,6 +388,7 @@
             transform: scale(1.02);
         }
 
+        /* Updated photo modal for transparency and increased z-index */
         .photo-modal {
             display: none;
             position: fixed;
@@ -391,7 +397,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.8);
-            z-index: 1000;
+            z-index: 10000; /* Increased from 1000 to 10000 to go above Leaflet controls */
             justify-content: center;
             align-items: center;
         }
@@ -400,13 +406,16 @@
             max-width: 90%;
             max-height: 90%;
             position: relative;
+            background: transparent;
+            z-index: 10001; /* Ensure content stays above overlay */
         }
 
         .modal-content img {
             max-width: 100%;
             max-height: 90vh;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+            background: transparent;
         }
 
         .close-modal {
@@ -420,6 +429,7 @@
             border: none;
             padding: 10px;
             transition: transform 0.2s;
+            z-index: 10002; /* Ensure close button stays above everything */
         }
 
         .close-modal:hover {
@@ -512,17 +522,19 @@
             margin-top: 5px;
         }
 
+        /* Updated stone feature image for transparency */
         .stone-feature-image {
-            width: 150px;
-            height: 150px;
-            object-fit: cover;
+            max-width: 150px;
+            max-height: 150px;
+            object-fit: contain;
             border-radius: 8px;
             margin: 10px auto;
             cursor: pointer;
             transition: transform 0.2s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));
+            background: transparent;
             display: block;
-            border: 4px solid white;
+            border: none;
         }
 
         .stone-feature-image:hover {
@@ -533,6 +545,19 @@
             background: #f0fff4 !important;
             border-left: 4px solid #84fab0 !important;
             text-align: center;
+        }
+
+        /* Stone placeholder style */
+        .stone-placeholder {
+            width: 150px;
+            height: 150px;
+            margin: 5px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(245, 245, 245, 0.5);
+            border: 2px dashed rgba(132, 250, 176, 0.5);
         }
 
         @media (max-width: 768px) {
@@ -759,15 +784,29 @@
             }
         }
 
+        // Updated function to hide map controls when showing modal
         function openPhotoModal(url) {
             const modal = document.getElementById('photoModal');
             const modalImg = document.getElementById('modalImage');
+            
+            // Hide map controls when opening modal
+            document.querySelectorAll('.leaflet-control-container').forEach(control => {
+                control.style.visibility = 'hidden';
+            });
+            
             modal.style.display = 'flex';
             modalImg.src = url;
         }
 
+        // Updated function to restore map controls when closing modal
         function closePhotoModal() {
             const modal = document.getElementById('photoModal');
+            
+            // Restore map controls when closing modal
+            document.querySelectorAll('.leaflet-control-container').forEach(control => {
+                control.style.visibility = 'visible';
+            });
+            
             modal.style.display = 'none';
         }
 
@@ -893,7 +932,7 @@
                     `;
                 } else {
                     bestStonePhoto.innerHTML = `
-                        <div style="width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 8px; border: 1px dashed #ccc;">
+                        <div class="stone-placeholder" style="width: 70px; height: 70px;">
                             <p style="margin: 0; color: #666; font-size: 0.7em;">No photo</p>
                         </div>
                         <p style="margin: 3px 0 0 0; font-size: 0.75em; color: #666;">${stone.journeyCount} journeys</p>
@@ -1437,7 +1476,7 @@
                             if (photoUrl) {
                                 popupContent += `
                                     <img src="${photoUrl}" 
-                                        style="width: 90px; height: 90px; object-fit: cover; border-radius: 3px; margin-top: 4px; cursor: pointer;"
+                                        style="width: 90px; height: 90px; object-fit: contain; border-radius: 3px; margin-top: 4px; cursor: pointer; background: transparent; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1));"
                                         onclick="openPhotoModal('${photoUrl}')"
                                     >
                                 `;
@@ -1445,7 +1484,7 @@
                                 // Use journey photo if stone photo not available
                                 popupContent += `
                                     <img src="${journeyData.photoData.url}" 
-                                        style="width: 90px; height: 90px; object-fit: cover; border-radius: 3px; margin-top: 4px; cursor: pointer;"
+                                        style="width: 90px; height: 90px; object-fit: contain; border-radius: 3px; margin-top: 4px; cursor: pointer; background: transparent; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1));"
                                         onclick="openPhotoModal('${journeyData.photoData.url}')"
                                     >
                                 `;
@@ -1599,7 +1638,7 @@
                 } else {
                     featurePhotoContainer.innerHTML = `
                         <h3 style="font-size: 0.9em; margin-top: 0;">Feature Photo</h3>
-                        <div style="width: 150px; height: 150px; margin: 5px auto; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 8px; border: 1px dashed #ccc;">
+                        <div class="stone-placeholder">
                             <p style="color: #666; margin: 0; font-size: 0.8em;">No photo yet</p>
                         </div>
                     `;
@@ -1670,7 +1709,7 @@
                         if (data.photoData && data.photoData.url) {
                             popupContent += `
                                 <img src="${data.photoData.url}" 
-                                    style="width: 100%; border-radius: 4px; margin-top: 5px; cursor: pointer;"
+                                    style="width: 100%; border-radius: 4px; margin-top: 5px; cursor: pointer; background: transparent;"
                                     onclick="openPhotoModal('${data.photoData.url}')"
                                 >
                             `;
