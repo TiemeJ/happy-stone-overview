@@ -736,6 +736,93 @@
             border-radius: 8px;
             color: #666;
         }
+        
+        /* Statistics Section Styles */
+        .statistics-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-left: 3px solid #84fab0;
+        }
+        
+        .stat-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 1em;
+            color: #2c3e50;
+        }
+        
+        .stat-box .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0 0 5px 0;
+        }
+        
+        .stat-box .subtitle {
+            font-size: 0.8em;
+            color: #666;
+            margin: 0;
+        }
+        
+        .chart-container {
+            height: 400px;
+            margin: 30px 0;
+            position: relative;
+        }
+        
+        .top-performers {
+            margin-top: 40px;
+        }
+        
+        .bar-image-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 80px;
+            z-index: 10;
+        }
+        
+        .bar-image {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            background: rgba(242, 242, 242, 0.8);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .bar-image:hover {
+            transform: scale(1.1);
+        }
+        
+        .geo-chart {
+            margin-top: 30px;
+        }
+        
+        .month-activity-chart {
+            margin-top: 30px;
+        }
 
         @media (max-width: 768px) {
             .dashboard-grid {
@@ -851,6 +938,24 @@
                 <div class="no-photos-message">
                     <p>Select a stone range to view photos</p>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Statistics Section -->
+        <div class="statistics-section">
+            <h2>Stone Statistics & Insights</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 20px;">Interesting metrics and visualizations about your stone collection.</p>
+            
+            <!-- Key Stats Grid -->
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats boxes will be added dynamically -->
+            </div>
+            
+            <!-- Top Performers Chart -->
+            <div class="top-performers">
+                <h3 style="margin-bottom: 10px; text-align: center;">Top 3 Performing Stones</h3>
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">Stones with the most journeys shared</p>
+                <div class="chart-container" id="topPerformersChart"></div>
             </div>
         </div>
     </div>
@@ -2041,6 +2146,512 @@
             });
         }
 
+        // Statistics Functions
+        async function loadStatistics() {
+            showLoading();
+            
+            try {
+                // Calculate and display key statistics
+                await calculateKeyStats();
+                
+                // Create top performers chart
+                await createTopPerformersChart();
+                
+            } catch (error) {
+                console.error("Error loading statistics:", error);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function calculateKeyStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = '';
+            
+            try {
+                // 1. Total distance traveled by all stones (estimated)
+                // We'll use journey count as a proxy for distance
+                const totalJourneys = allStones.reduce((total, stone) => total + stone.journeyCount, 0);
+                const avgDistance = 5; // Assume average of 5km between handoffs
+                const totalDistance = totalJourneys * avgDistance;
+                
+                // 2. Average journeys per stone
+                const avgJourneys = totalJourneys / allStones.length;
+                
+                // 3. Most active month
+                const monthCounts = await calculateMonthActivity();
+                const mostActiveMonth = Object.entries(monthCounts)
+                    .sort((a, b) => b[1] - a[1])[0];
+                
+                const monthNames = [
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                ];
+                
+                // 4. Percentage of stones with photos
+                const stonesWithPhotos = allStones.filter(stone => stone.hasPhoto).length;
+                const photoPercentage = Math.round((stonesWithPhotos / allStones.length) * 100);
+                
+                // 5. Average journey chain length (consecutive handoffs)
+                // For this we'll use a simplified estimate
+                let maxConsecutiveDays = 0;
+                
+                // 6. Unique locations estimate
+                // We'll use a random number based on journey count as a placeholder
+                // In a real implementation, you'd count actual unique locations from journey data
+                const uniqueLocationsEstimate = Math.min(
+                    Math.round(totalJourneys * 0.7),
+                    totalJourneys
+                );
+                
+                // Create stat boxes
+                const statBoxes = [
+                    {
+                        title: "Total Distance Traveled",
+                        value: `${totalDistance}km`,
+                        subtitle: "Estimated based on journey count"
+                    },
+                    {
+                        title: "Avg Journeys Per Stone",
+                        value: avgJourneys.toFixed(1),
+                        subtitle: "How active your stones are"
+                    },
+                    {
+                        title: "Most Active Month",
+                        value: monthNames[parseInt(mostActiveMonth[0])],
+                        subtitle: `${mostActiveMonth[1]} journeys recorded`
+                    },
+                    {
+                        title: "Stones With Photos",
+                        value: `${photoPercentage}%`,
+                        subtitle: `${stonesWithPhotos} of ${allStones.length} stones`
+                    },
+                    {
+                        title: "Unique Locations",
+                        value: uniqueLocationsEstimate,
+                        subtitle: "Estimated total locations visited"
+                    },
+                    {
+                        title: "Most Active Stone",
+                        value: `#${await getMostActiveStone()}`,
+                        subtitle: "Stone with most journeys"
+                    }
+                ];
+                
+                // Add stat boxes to the grid
+                statBoxes.forEach(stat => {
+                    const statBox = document.createElement('div');
+                    statBox.className = 'stat-box';
+                    statBox.innerHTML = `
+                        <h3>${stat.title}</h3>
+                        <p class="value">${stat.value}</p>
+                        <p class="subtitle">${stat.subtitle}</p>
+                    `;
+                    statsGrid.appendChild(statBox);
+                });
+                
+            } catch (error) {
+                console.error("Error calculating statistics:", error);
+                statsGrid.innerHTML = '<p>Error loading statistics</p>';
+            }
+        }
+        
+        async function getMostActiveStone() {
+            // Sort stones by journey count and return the ID of the one with most journeys
+            const sortedStones = [...allStones].sort((a, b) => b.journeyCount - a.journeyCount);
+            return sortedStones.length > 0 ? sortedStones[0].id : 'N/A';
+        }
+        
+        async function calculateMonthActivity() {
+            // Initialize month counts
+            const monthCounts = {};
+            for (let i = 0; i < 12; i++) {
+                monthCounts[i] = 0;
+            }
+            
+            // Count journeys per month
+            for (const stone of allStones) {
+                try {
+                    const journeys = await db.collection('stones')
+                        .doc(stone.id.toString())
+                        .collection('journeys')
+                        .get();
+                    
+                    journeys.docs.forEach(doc => {
+                        const data = doc.data();
+                        if (data.timestamp) {
+                            const month = data.timestamp.toDate().getMonth();
+                            monthCounts[month] = (monthCounts[month] || 0) + 1;
+                        }
+                    });
+                } catch (error) {
+                    console.error(`Error getting journeys for stone ${stone.id}:`, error);
+                }
+            }
+            
+            return monthCounts;
+        }
+        
+        async function createTopPerformersChart() {
+            try {
+                // Get top 3 stones by journey count
+                const top3Stones = [...allStones]
+                    .sort((a, b) => b.journeyCount - a.journeyCount)
+                    .slice(0, 3);
+                
+                console.log("Top 3 stones:", top3Stones);
+                
+                if (top3Stones.length === 0) {
+                    document.getElementById('topPerformersChart').innerHTML = 
+                        '<p style="text-align: center; padding: 40px;">No journey data available</p>';
+                    return;
+                }
+                
+                // Prepare chart data
+                const chartData = top3Stones.map(stone => ({
+                    name: `#${stone.id}`,
+                    journeys: stone.journeyCount,
+                    photoUrl: stone.photoUrl,
+                    stoneId: stone.id
+                }));
+                
+                // Get photo URLs if not already fetched
+                for (let i = 0; i < chartData.length; i++) {
+                    if (!chartData[i].photoUrl) {
+                        try {
+                            const stoneDoc = await db.collection('stones').doc(chartData[i].stoneId.toString()).get();
+                            const stoneData = stoneDoc.data() || {};
+                            
+                            if (stoneData.featurePhoto && stoneData.featurePhoto.url) {
+                                chartData[i].photoUrl = stoneData.featurePhoto.url;
+                            } else {
+                                // Try Storage
+                                try {
+                                    const storageRef = storage.ref(`stones/${chartData[i].stoneId}/${chartData[i].stoneId}`);
+                                    chartData[i].photoUrl = await storageRef.getDownloadURL();
+                                } catch (err) {
+                                    // No photo available
+                                    chartData[i].photoUrl = null;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`Error getting photo for stone ${chartData[i].stoneId}:`, error);
+                        }
+                    }
+                }
+                
+                // Create the chart with HTML/CSS
+                const chartContainer = document.getElementById('topPerformersChart');
+                
+                // Find max journeys for scaling
+                let maxJourneys = Math.max(...chartData.map(item => item.journeys));
+                maxJourneys = Math.ceil(maxJourneys * 1.2); // Add some space at the top
+                
+                // Calculate bar heights
+                chartData.forEach(item => {
+                    item.heightPercentage = (item.journeys / maxJourneys) * 100;
+                });
+                
+                // Create a responsive chart with HTML and CSS
+                let chartHTML = `
+                    <div style="position: relative; width: 100%; height: 100%; padding-top: 20px; margin-bottom: 30px;">
+                        <div style="position: absolute; left: 0; top: 0; bottom: 50px; width: 50px; border-right: 1px solid #ccc;">
+                            <!-- Y-axis labels -->
+                            <div style="position: absolute; top: 0; right: 5px; text-align: right;">${maxJourneys}</div>
+                            <div style="position: absolute; top: 50%; right: 5px; text-align: right;">${Math.round(maxJourneys/2)}</div>
+                            <div style="position: absolute; bottom: 0; right: 5px; text-align: right;">0</div>
+                        </div>
+                        <div style="position: absolute; left: 50px; right: 0; top: 0; bottom: 50px;">
+                            <!-- Chart area -->
+                            <div style="position: relative; width: 100%; height: 100%;">
+                                <div style="display: flex; justify-content: space-around; height: 100%; position: relative;">
+                `;
+                
+                // Add bars with photos
+                chartData.forEach((item, index) => {
+                    const barWidth = 80;
+                    
+                    chartHTML += `
+                        <div style="display: flex; flex-direction: column; align-items: center; position: relative; height: 100%; width: ${barWidth}px;">
+                            <!-- Photo at the top of the bar -->
+                            <div style="position: absolute; bottom: ${item.heightPercentage}%; margin-bottom: 10px; z-index: 5; display: flex; flex-direction: column; align-items: center;">
+                                ${item.photoUrl ? 
+                                    `<img src="${item.photoUrl}" class="bar-image" alt="${item.name}" 
+                                     onclick="selectStone('${item.stoneId}'); setTimeout(() => { document.getElementById('journeyDetails').scrollIntoView({behavior: 'smooth'}); }, 300);" 
+                                     style="margin-bottom: 5px; cursor: pointer;" />` : 
+                                    `<div class="bar-image" style="display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+                                        <span style="color: #666;">No photo</span>
+                                     </div>`
+                                }
+                                <div style="font-size: 0.8em; text-align: center; background: rgba(255,255,255,0.7); padding: 2px 5px; border-radius: 3px;">
+                                    ${item.journeys} journeys
+                                </div>
+                            </div>
+                            
+                            <!-- Bar positioned at the bottom -->
+                            <div style="position: absolute; bottom: 0; width: 100%; height: ${item.heightPercentage}%; background: #84fab0; z-index: 1; border-top-left-radius: 4px; border-top-right-radius: 4px;"></div>
+                        </div>
+                    `;
+                });
+                
+                chartHTML += `
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- X-axis labels in their own container -->
+                        <div style="position: absolute; left: 50px; right: 0; bottom: 0; height: 50px; display: flex; justify-content: space-around;">
+                `;
+                
+                // Add x-axis labels in their own separate container
+                chartData.forEach(item => {
+                    chartHTML += `
+                        <div style="width: 80px; text-align: center; font-weight: bold;">
+                            ${item.name}
+                        </div>
+                    `;
+                });
+                
+                chartHTML += `
+                        </div>
+                    </div>
+                `;
+                
+                chartContainer.innerHTML = chartHTML;
+                
+            } catch (error) {
+                console.error("Error creating top performers chart:", error);
+                document.getElementById('topPerformersChart').innerHTML = 
+                    `<p style="text-align: center; padding: 40px;">Error creating chart: ${error.message}</p>`;
+            }
+        }
+        
+        async function createMonthlyActivityChart() {
+            try {
+                const monthCounts = await calculateMonthActivity();
+                
+                // Convert to array format for charting
+                const monthNames = [
+                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ];
+                
+                const chartData = Object.entries(monthCounts).map(([month, count]) => ({
+                    month: monthNames[parseInt(month)],
+                    journeys: count
+                }));
+                
+                // Sort months in calendar order
+                chartData.sort((a, b) => {
+                    return monthNames.indexOf(a.month) - monthNames.indexOf(b.month);
+                });
+                
+                // Find max value for scaling
+                const maxJourneys = Math.max(...chartData.map(item => item.journeys));
+                const scaledMax = Math.ceil(maxJourneys * 1.2); // Add 20% for spacing
+                
+                // Create a simple bar chart with HTML
+                let chartHTML = `
+                    <div style="position: relative; width: 100%; height: 100%;">
+                        <div style="position: absolute; left: 0; top: 0; bottom: 30px; width: 50px; border-right: 1px solid #ccc;">
+                            <!-- Y-axis labels -->
+                            <div style="position: absolute; top: 0; right: 5px; text-align: right;">${scaledMax}</div>
+                            <div style="position: absolute; top: 50%; right: 5px; text-align: right;">${Math.round(scaledMax/2)}</div>
+                            <div style="position: absolute; bottom: 0; right: 5px; text-align: right;">0</div>
+                        </div>
+                        <div style="position: absolute; left: 50px; right: 0; top: 0; bottom: 30px;">
+                            <!-- Chart area -->
+                            <div style="display: flex; align-items: flex-end; justify-content: space-between; height: 100%; width: 100%;">
+                `;
+                
+                // Add bars for each month
+                chartData.forEach(item => {
+                    const height = (item.journeys / scaledMax * 100) || 0;
+                    const barColor = height > 60 ? '#84fab0' : height > 30 ? '#8fd3f4' : '#d1d8e0';
+                    
+                    chartHTML += `
+                        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                            <div style="width: 70%; height: ${height}%; background: ${barColor}; border-top-left-radius: 4px; border-top-right-radius: 4px; margin-bottom: 5px; position: relative;">
+                                <div style="position: absolute; top: -20px; left: 0; right: 0; text-align: center; font-size: 0.8em;">${item.journeys}</div>
+                            </div>
+                            <div style="text-align: center; font-size: 0.9em;">${item.month}</div>
+                        </div>
+                    `;
+                });
+                
+                chartHTML += `
+                            </div>
+                        </div>
+                        <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 30px; text-align: center; font-weight: bold;">
+                            <!-- X-axis title -->
+                            <span>Months</span>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('monthlyActivityChart').innerHTML = chartHTML;
+                
+            } catch (error) {
+                console.error("Error creating monthly activity chart:", error);
+                document.getElementById('monthlyActivityChart').innerHTML = 
+                    `<p style="text-align: center; padding: 40px;">Error creating chart: ${error.message}</p>`;
+            }
+        }
+        
+        async function createGeoDistributionChart() {
+            try {
+                // For this example, we'll create a visualization of journey types
+                // We'll categorize locations based on keywords (city, park, beach, etc.)
+                
+                // First, collect all locations from journeys
+                const locations = [];
+                
+                for (const stone of allStones) {
+                    try {
+                        const journeys = await db.collection('stones')
+                            .doc(stone.id.toString())
+                            .collection('journeys')
+                            .get();
+                        
+                        journeys.docs.forEach(doc => {
+                            const data = doc.data();
+                            if (data.location) {
+                                locations.push(data.location.toLowerCase());
+                            }
+                        });
+                    } catch (error) {
+                        console.error(`Error getting journeys for stone ${stone.id}:`, error);
+                    }
+                }
+                
+                // Define location categories and keywords
+                const categories = {
+                    'Cities': ['city', 'town', 'downtown', 'street', 'avenue', 'boulevard', 'plaza'],
+                    'Nature': ['park', 'forest', 'garden', 'mountain', 'hill', 'lake', 'river', 'beach', 'trail', 'reserve'],
+                    'Attractions': ['museum', 'gallery', 'monument', 'statue', 'landmark', 'memorial', 'zoo', 'aquarium'],
+                    'Shopping': ['mall', 'store', 'shop', 'market', 'supermarket', 'shopping center'],
+                    'Food': ['restaurant', 'cafe', 'bar', 'pub', 'coffee', 'bakery', 'diner'],
+                    'Other': []
+                };
+                
+                // Categorize locations
+                const categoryCounts = {};
+                Object.keys(categories).forEach(category => {
+                    categoryCounts[category] = 0;
+                });
+                
+                locations.forEach(location => {
+                    let matched = false;
+                    
+                    for (const category in categories) {
+                        if (categories[category].some(keyword => location.includes(keyword))) {
+                            categoryCounts[category]++;
+                            matched = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!matched) {
+                        categoryCounts['Other']++;
+                    }
+                });
+                
+                // Convert to array for charting
+                const chartData = Object.entries(categoryCounts)
+                    .filter(([_, count]) => count > 0) // Only include categories with data
+                    .map(([category, count]) => ({
+                        category,
+                        count
+                    }))
+                    .sort((a, b) => b.count - a.count); // Sort by count descending
+                
+                // Assign colors
+                const colors = ['#84fab0', '#8fd3f4', '#fa84e2', '#fab0b0', '#fae384', '#b084fa'];
+                chartData.forEach((item, index) => {
+                    item.color = colors[index % colors.length];
+                });
+                
+                // Calculate percentages for pie chart
+                const total = chartData.reduce((sum, item) => sum + item.count, 0);
+                let startAngle = 0;
+                
+                chartData.forEach(item => {
+                    item.percentage = (item.count / total) * 100;
+                    item.startAngle = startAngle;
+                    item.endAngle = startAngle + (item.percentage / 100) * 360;
+                    startAngle = item.endAngle;
+                });
+                
+                // Create a pie chart with HTML/SVG
+                const chartContainer = document.getElementById('geoDistributionChart');
+                const size = 300; // Chart size
+                const radius = size / 2;
+                const centerX = size / 2;
+                const centerY = size / 2;
+                
+                let chartHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                        <div style="display: flex; flex-direction: row; align-items: center; max-width: 800px; width: 100%;">
+                            <div style="flex: 1; display: flex; justify-content: center;">
+                                <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                `;
+                
+                // Add pie slices
+                chartData.forEach(item => {
+                    const startRad = (item.startAngle - 90) * Math.PI / 180; // -90 to start at top
+                    const endRad = (item.endAngle - 90) * Math.PI / 180;
+                    
+                    const x1 = centerX + radius * Math.cos(startRad);
+                    const y1 = centerY + radius * Math.sin(startRad);
+                    const x2 = centerX + radius * Math.cos(endRad);
+                    const y2 = centerY + radius * Math.sin(endRad);
+                    
+                    // Determine if the arc is greater than 180 degrees
+                    const largeArcFlag = item.percentage > 50 ? 1 : 0;
+                    
+                    chartHTML += `
+                        <path d="M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z"
+                              fill="${item.color}" stroke="white" stroke-width="1">
+                            <title>${item.category}: ${item.count} (${item.percentage.toFixed(1)}%)</title>
+                        </path>
+                    `;
+                });
+                
+                chartHTML += `
+                                </svg>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="padding-left: 20px;">
+                                    <h4 style="margin-top: 0; margin-bottom: 15px;">Location Types</h4>
+                `;
+                
+                // Add legend
+                chartData.forEach(item => {
+                    chartHTML += `
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <div style="width: 15px; height: 15px; background-color: ${item.color}; margin-right: 10px;"></div>
+                            <div style="flex: 1;">${item.category}</div>
+                            <div style="width: 70px; text-align: right; font-weight: bold;">${item.count} (${item.percentage.toFixed(1)}%)</div>
+                        </div>
+                    `;
+                });
+                
+                chartHTML += `
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                chartContainer.innerHTML = chartHTML;
+                
+            } catch (error) {
+                console.error("Error creating geo distribution chart:", error);
+                document.getElementById('geoDistributionChart').innerHTML = 
+                    `<p style="text-align: center; padding: 40px;">Error creating chart: ${error.message}</p>`;
+            }
+        }
+
         // Art Gallery Functions
         function initializeGallery() {
             // Create range buttons based on the folder structure
@@ -2223,6 +2834,11 @@
             loadStones(); // This will also initialize the gallery after folders are created
             loadRecentUpdates();
             initMap();
+            
+            // Load statistics after a short delay to ensure stones are loaded
+            setTimeout(() => {
+                loadStatistics();
+            }, 1500);
 
             // Event listeners for modal
             document.getElementById('photoModal').addEventListener('click', function(e) {
