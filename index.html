@@ -277,8 +277,17 @@
             padding: 20px;
             background: #f8f9fa;
             border-radius: 15px;
+        }
+
+        .journey-entries-container {
             max-height: 600px;
             overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        .journey-entries-collapsed {
+            max-height: 0;
+            overflow: hidden;
         }
 
         .journey-entry {
@@ -287,6 +296,37 @@
             margin-bottom: 15px;
             border-radius: 10px;
             border-left: 4px solid #84fab0;
+        }
+
+        .toggle-timeline-btn {
+            background: #84fab0;
+            color: #2c3e50;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 10px auto;
+            display: block;
+            font-size: 0.9em;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-timeline-btn:hover {
+            background: #5ae296;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .toggle-timeline-btn .arrow {
+            display: inline-block;
+            margin-left: 5px;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-timeline-btn .arrow.up {
+            transform: rotate(180deg);
         }
 
         .recent-updates {
@@ -560,6 +600,34 @@
             border: 2px dashed rgba(132, 250, 176, 0.5);
         }
 
+        /* Journey timeline summary */
+        .journey-summary {
+            background: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .journey-summary-info {
+            flex: 1;
+        }
+
+        .journey-summary-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 1em;
+            color: #2c3e50;
+        }
+
+        .journey-summary-info p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
         @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -781,6 +849,32 @@
             } catch (error) {
                 console.error("Error geocoding location:", error);
                 return null;
+            }
+        }
+
+        // Toggle timeline visibility
+        function toggleTimeline() {
+            const entriesContainer = document.getElementById('journeyEntriesContainer');
+            const toggleButton = document.getElementById('toggleTimelineBtn');
+            const arrow = toggleButton.querySelector('.arrow');
+            
+            if (entriesContainer.classList.contains('journey-entries-collapsed')) {
+                // Expand timeline
+                entriesContainer.classList.remove('journey-entries-collapsed');
+                toggleButton.innerHTML = 'Hide Journey Timeline <span class="arrow up">▼</span>';
+                
+                // Scroll to the entries container (with a small delay to allow for the animation)
+                setTimeout(() => {
+                    entriesContainer.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }, 100);
+            } else {
+                // Collapse timeline
+                entriesContainer.classList.add('journey-entries-collapsed');
+                toggleButton.innerHTML = 'Show Journey Timeline <span class="arrow">▼</span>';
+                
+                // Scroll back to the summary section
+                const journeyDetails = document.getElementById('journeyDetails');
+                journeyDetails.scrollIntoView({behavior: 'smooth', block: 'start'});
             }
         }
 
@@ -1520,7 +1614,7 @@
             }
         }
 
-        // Update existing stone selection function to refresh all stones map
+        // Modified: Update stone selection function with collapsible timeline
         async function selectStone(stoneId) {
             showLoading();
             activeStoneId = stoneId;
@@ -1683,6 +1777,25 @@
                     }
                 }
 
+                // Add a journey summary section with basic stats
+                const journeyCount = journeysSnapshot.size;
+                const firstJourneyDate = journeysSnapshot.docs.length > 0 && journeysSnapshot.docs[journeysSnapshot.docs.length - 1].data().timestamp ?
+                    journeysSnapshot.docs[journeysSnapshot.docs.length - 1].data().timestamp.toDate().toLocaleDateString() : 'Unknown';
+                const lastJourneyDate = journeysSnapshot.docs.length > 0 && journeysSnapshot.docs[0].data().timestamp ?
+                    journeysSnapshot.docs[0].data().timestamp.toDate().toLocaleDateString() : 'Unknown';
+                
+                const journeySummary = document.createElement('div');
+                journeySummary.className = 'journey-summary';
+                journeySummary.innerHTML = `
+                    <div class="journey-summary-info">
+                        <h3>Journey Summary</h3>
+                        <p>Total Journeys: ${journeyCount}</p>
+                        <p>First Journey: ${firstJourneyDate}</p>
+                        <p>Latest Journey: ${lastJourneyDate}</p>
+                    </div>
+                `;
+                journeyDetails.appendChild(journeySummary);
+
                 if (coordinates.length > 0) {
                     // Create the main journey path polyline
                     const path = L.polyline(coordinates, {
@@ -1737,6 +1850,21 @@
                     highlightStoneOnAllStonesMap(stoneId);
                 }
 
+                // Add the toggle button for the timeline
+                const toggleButton = document.createElement('button');
+                toggleButton.id = 'toggleTimelineBtn';
+                toggleButton.className = 'toggle-timeline-btn';
+                toggleButton.innerHTML = 'Show Journey Timeline <span class="arrow">▼</span>';
+                toggleButton.onclick = toggleTimeline;
+                journeyDetails.appendChild(toggleButton);
+
+                // Create collapsible container for timeline entries
+                const entriesContainer = document.createElement('div');
+                entriesContainer.id = 'journeyEntriesContainer';
+                entriesContainer.className = 'journey-entries-container journey-entries-collapsed';
+                journeyDetails.appendChild(entriesContainer);
+
+                // Add journey entries to the collapsible container
                 journeysSnapshot.docs.forEach(doc => {
                     const data = doc.data();
                     const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Recent';
@@ -1762,7 +1890,7 @@
                         <p>${data.message}</p>
                         <p style="color: #666; font-size: 0.9em;">${date} ${time}</p>
                     `;
-                    journeyDetails.appendChild(entry);
+                    entriesContainer.appendChild(entry);
                 });
 
             } catch (error) {
