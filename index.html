@@ -1798,7 +1798,7 @@
                                 <div style="text-align: center;">
                             `;
                             
-                            // Add photo if available - CIRCLE STYLE
+                            // Check if stone has a photo
                             if (photoUrl) {
                                 popupContent += `
                                     <img src="${photoUrl}" 
@@ -1807,12 +1807,20 @@
                                     >
                                 `;
                             } else if (journeyData.photoData && journeyData.photoData.url) {
-                                // Use journey photo if stone photo not available
+                                // If no stone photo, use the most recent journey photo
                                 popupContent += `
                                     <img src="${journeyData.photoData.url}" 
                                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; cursor: pointer; background: #f5f5f5; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1)); border: 2px solid white;"
                                         onclick="selectStone('${stoneId}'); setTimeout(() => { document.getElementById('journeyDetails').scrollIntoView({behavior: 'smooth'}); }, 300);"
                                     >
+                                `;
+                            } else {
+                                // No photos available at all
+                                popupContent += `
+                                    <div style="width: 60px; height: 60px; border-radius: 50%; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 0.7em; color: #666; border: 2px solid white; text-align: center; cursor: pointer;"
+                                         onclick="selectStone('${stoneId}'); setTimeout(() => { document.getElementById('journeyDetails').scrollIntoView({behavior: 'smooth'}); }, 300);">
+                                        No photo<br>available
+                                    </div>
                                 `;
                             }
                             
@@ -2000,7 +2008,8 @@
                         // Store the journey data along with coordinates
                         journeyPoints.push({
                             coordinates: [coords.lat, coords.lon],
-                            data: data
+                            data: data,
+                            stonePhotoUrl: photoUrl // Pass the stone's photo URL
                         });
                     }
                 }
@@ -2040,17 +2049,35 @@
                         const isFinalPoint = index === journeyPoints.length - 1;
                         const data = point.data;
                         
-                        // Create popup content - PHOTO ONLY
+                        // Create popup content - PHOTO WITH FALLBACK
                         let popupContent = `
                             <div style="text-align: center;">
                         `;
                         
+                        // First try to use journey photo
                         if (data.photoData && data.photoData.url) {
                             popupContent += `
                                 <img src="${data.photoData.url}" 
                                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; cursor: pointer; background: #f5f5f5; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1)); border: 2px solid white;"
                                     onclick="openPhotoModal('${data.photoData.url}')"
                                 >
+                            `;
+                        } 
+                        // Then try to use stone photo if available
+                        else if (point.stonePhotoUrl) {
+                            popupContent += `
+                                <img src="${point.stonePhotoUrl}" 
+                                    style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; cursor: pointer; background: #f5f5f5; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1)); border: 2px solid white;"
+                                    onclick="openPhotoModal('${point.stonePhotoUrl}')"
+                                >
+                            `;
+                        } 
+                        // No photos available
+                        else {
+                            popupContent += `
+                                <div style="width: 60px; height: 60px; border-radius: 50%; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 0.7em; color: #666; border: 2px solid white; text-align: center;">
+                                    No photo<br>available
+                                </div>
                             `;
                         }
                         
