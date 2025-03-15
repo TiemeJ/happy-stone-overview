@@ -627,6 +627,115 @@
             font-size: 0.9em;
             color: #666;
         }
+        
+        /* Art Gallery Styles */
+        .art-gallery-section {
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .gallery-controls {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .range-button {
+            background: #f1f9fe;
+            border: 1px solid #d1e3fa;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+            color: #2c3e50;
+        }
+        
+        .range-button:hover {
+            background: #e4f3ff;
+            transform: translateY(-2px);
+        }
+        
+        .range-button.active {
+            background: #84fab0;
+            border-color: #5ae296;
+            color: #1f2d3d;
+            font-weight: bold;
+        }
+        
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .gallery-item {
+            position: relative;
+            height: 180px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .gallery-item:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1;
+        }
+        
+        .gallery-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1));
+            cursor: pointer;
+        }
+        
+        .gallery-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+            color: #999;
+            border-radius: 8px;
+        }
+        
+        .gallery-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 8px;
+            font-size: 0.8em;
+            text-align: center;
+        }
+        
+        .no-photos-message {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            color: #666;
+        }
 
         @media (max-width: 768px) {
             .dashboard-grid {
@@ -726,6 +835,22 @@
                     </div>
                 </div>
                 <div class="journey-details" id="journeyDetails"></div>
+            </div>
+        </div>
+        
+        <!-- Art Gallery Section -->
+        <div class="art-gallery-section">
+            <h2>Stone Art Gallery</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 20px;">View all stone photos in a gallery layout. Select a range to view photos.</p>
+            
+            <div class="gallery-controls" id="galleryRangeSelector">
+                <!-- Range buttons will be added dynamically -->
+            </div>
+            
+            <div class="gallery-grid" id="galleryGrid">
+                <div class="no-photos-message">
+                    <p>Select a stone range to view photos</p>
+                </div>
             </div>
         </div>
     </div>
@@ -1379,7 +1504,7 @@
                 folderCard.innerHTML = `
                     <div class="folder-icon">📁</div>
                     <h3>${folderName}</h3>
-                    <p>${stones.length} stones</p>
+                    <p>${stones.length} stones${stonesWithPhotos > 0 ? ` (${stonesWithPhotos} with photos)` : ''}</p>
                 `;
                 
                 folderCard.onclick = () => showStonesInFolder(folderId, folderName);
@@ -1461,6 +1586,9 @@
                 } else {
                     console.log("Could not determine best performing stone");
                 }
+                
+                // Initialize gallery AFTER folders are created
+                initializeGallery();
 
             } catch (error) {
                 console.error("Error loading stones:", error);
@@ -1913,9 +2041,186 @@
             });
         }
 
+        // Art Gallery Functions
+        function initializeGallery() {
+            // Create range buttons based on the folder structure
+            createGalleryRangeButtons();
+        }
+        
+        function createGalleryRangeButtons() {
+            // Clear existing buttons
+            const rangeSelector = document.getElementById('galleryRangeSelector');
+            rangeSelector.innerHTML = '';
+            
+            // Get all folder IDs from our existing folder structure
+            const folderCards = document.querySelectorAll('.folder-card');
+            const folderIds = Array.from(folderCards).map(card => card.dataset.folderId);
+            
+            // Sort folder IDs numerically
+            folderIds.sort((a, b) => {
+                const [minA] = a.split('-').map(Number);
+                const [minB] = b.split('-').map(Number);
+                return minA - minB;
+            });
+            
+            // Add an "All Stones" button
+            const allButton = document.createElement('button');
+            allButton.className = 'range-button';
+            allButton.textContent = 'All Stones';
+            allButton.dataset.range = 'all';
+            allButton.onclick = () => loadGalleryPhotos('all');
+            rangeSelector.appendChild(allButton);
+            
+            // Create range buttons
+            folderIds.forEach(folderId => {
+                const [minStone, maxStone] = folderId.split('-');
+                const rangeButton = document.createElement('button');
+                rangeButton.className = 'range-button';
+                rangeButton.textContent = `Stones ${minStone}-${maxStone}`;
+                rangeButton.dataset.range = folderId;
+                rangeButton.onclick = () => loadGalleryPhotos(folderId);
+                rangeSelector.appendChild(rangeButton);
+            });
+        }
+        
+        async function loadGalleryPhotos(rangeId) {
+            showLoading();
+            
+            // Update active button
+            document.querySelectorAll('.range-button').forEach(button => {
+                button.classList.remove('active');
+                if (button.dataset.range === rangeId) {
+                    button.classList.add('active');
+                }
+            });
+            
+            try {
+                const galleryGrid = document.getElementById('galleryGrid');
+                galleryGrid.innerHTML = ''; // Clear existing content
+                
+                // Get all stones that have photos
+                let filteredStones = [];
+                
+                if (rangeId === 'all') {
+                    // All stones with photos
+                    filteredStones = allStones.filter(stone => stone.hasPhoto);
+                } else {
+                    // Filter by range
+                    const [minStone, maxStone] = rangeId.split('-').map(Number);
+                    
+                    filteredStones = allStones.filter(stone => {
+                        // Extract numeric part from stone ID
+                        const stoneIdStr = stone.id.toString();
+                        const numericPart = stoneIdStr.replace(/\D/g, '');
+                        const stoneNum = parseInt(numericPart);
+                        
+                        if (isNaN(stoneNum)) return false;
+                        return stoneNum >= minStone && stoneNum <= maxStone && stone.hasPhoto;
+                    });
+                }
+                
+                console.log(`Found ${filteredStones.length} stones with photos in range ${rangeId}`);
+                
+                // If no photos found
+                if (filteredStones.length === 0) {
+                    galleryGrid.innerHTML = `
+                        <div class="no-photos-message">
+                            <p>No photos found for this range</p>
+                            <p style="margin-top: 10px; font-size: 0.9em;">Try another range or upload photos for stones in this range</p>
+                        </div>
+                    `;
+                    hideLoading();
+                    return;
+                }
+                
+                // Sort stones by ID
+                filteredStones.sort((a, b) => {
+                    const numA = parseInt(a.id.toString().replace(/\D/g, ''));
+                    const numB = parseInt(b.id.toString().replace(/\D/g, ''));
+                    return numA - numB;
+                });
+                
+                // Create gallery items for each stone with a photo
+                for (const stone of filteredStones) {
+                    let photoUrl = stone.photoUrl;
+                    
+                    // If photoUrl not already available in the stone object, try to fetch it
+                    if (!photoUrl) {
+                        try {
+                            // Check Firestore first
+                            const stoneDoc = await db.collection('stones').doc(stone.id.toString()).get();
+                            const stoneData = stoneDoc.data() || {};
+                            
+                            if (stoneData.featurePhoto && stoneData.featurePhoto.url) {
+                                photoUrl = stoneData.featurePhoto.url;
+                            } else {
+                                // Try Storage
+                                try {
+                                    const storageRef = storage.ref(`stones/${stone.id}/${stone.id}`);
+                                    photoUrl = await storageRef.getDownloadURL();
+                                } catch (err) {
+                                    // No photo available - skip this stone
+                                    continue;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`Error getting photo for stone ${stone.id}:`, error);
+                            continue;
+                        }
+                    }
+                    
+                    // Create gallery item with the photo
+                    const galleryItem = document.createElement('div');
+                    galleryItem.className = 'gallery-item';
+                    galleryItem.dataset.stoneId = stone.id;
+                    galleryItem.innerHTML = `
+                        <img src="${photoUrl}" 
+                             alt="Stone #${stone.id}" 
+                             class="gallery-image"
+                             loading="lazy"
+                             onclick="openPhotoModal('${photoUrl}')"
+                        >
+                        <div class="gallery-caption">Stone #${stone.id}</div>
+                    `;
+                    
+                    // Add click handler to view stone details
+                    galleryItem.addEventListener('dblclick', () => {
+                        selectStone(stone.id);
+                        // Scroll to the stone's journey details
+                        setTimeout(() => {
+                            document.getElementById('journeyDetails').scrollIntoView({behavior: 'smooth'});
+                        }, 500);
+                    });
+                    
+                    galleryGrid.appendChild(galleryItem);
+                }
+                
+                // Add tooltip for double-click info if there are photos
+                if (filteredStones.length > 0) {
+                    const infoText = document.createElement('p');
+                    infoText.style.textAlign = 'center';
+                    infoText.style.color = '#666';
+                    infoText.style.fontSize = '0.8em';
+                    infoText.style.marginTop = '10px';
+                    infoText.innerHTML = 'Tip: Double-click a photo to view stone journey details';
+                    galleryGrid.appendChild(infoText);
+                }
+                
+            } catch (error) {
+                console.error("Error loading gallery photos:", error);
+                document.getElementById('galleryGrid').innerHTML = `
+                    <div class="no-photos-message">
+                        <p>Error loading photos: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+
         // Initialize the dashboard
         window.onload = () => {
-            loadStones();
+            loadStones(); // This will also initialize the gallery after folders are created
             loadRecentUpdates();
             initMap();
 
